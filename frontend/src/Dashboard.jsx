@@ -201,7 +201,9 @@ function Dashboard() {
 
         {/* Subscription Entry Form */}
         <div className="bg-white rounded-xl shadow-2xl p-6 sm:p-8 mb-8">
-          <h2 className="text-2xl font-bold text-black-800 mb-6">Add New Subscription</h2>
+         <h2 className="text-2xl font-bold mb-6" style={{ color: "black" }}>
+            Add New Subscription
+        </h2>
           
           {submitSuccess && (
             <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg text-green-800 text-sm font-medium">
@@ -313,7 +315,9 @@ function Dashboard() {
 
         {/* Subscriptions Table */}
         <div className="bg-white rounded-xl shadow-2xl p-6 sm:p-8">
-          <h2 className="text-2xl font-bold text-gray-800 mb-6">Your Subscriptions</h2>
+          <h2 className="text-2xl font-bold mb-6" style={{ color: "black" }}>
+            Your Subscriptions
+            </h2>
           
           {loading ? (
             <div className="space-y-3">
