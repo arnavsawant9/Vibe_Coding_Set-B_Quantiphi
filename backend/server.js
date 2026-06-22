@@ -153,13 +153,35 @@ app.delete('/api/subscriptions/:id', (req, res) => {
   res.json(enrichedSubscription);
 });
 
-// Error handling middleware
+app.get('/api/metrics', (req, res) => {
+  const totalMonthlyBurn = subscriptions
+    .filter(s => s.isActive)
+    .reduce((sum, subscription) => {
+      const monthlyCost = normalizeToMonthly(subscription.cost, subscription.billingCycle);
+      return sum + monthlyCost;
+    }, 0);
+
+  const upcomingRenewalsCount = subscriptions
+    .filter(s => {
+      const daysLeft = daysUntilRenewal(s.nextRenewalDate);
+      const renewingSoon = isRenewingSoon(daysLeft);
+      return renewingSoon && s.isActive;
+    })
+    .length;
+
+  res.json({
+    totalMonthlyBurn: parseFloat(totalMonthlyBurn.toFixed(2)),
+    upcomingRenewalsCount
+  });
+});
+
+
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ message: 'Internal server error' });
 });
 
-// Start server
+
 const PORT = 5000;
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
