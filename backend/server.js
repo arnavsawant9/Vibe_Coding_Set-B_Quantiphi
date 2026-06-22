@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const { normalizeToMonthly, daysUntilRenewal, isRenewingSoon } = require('./utils');
 
 const app = express();
 
@@ -36,20 +37,32 @@ const subscriptions = [
 ];
 
 // Routes
-app.get('/subscriptions', (req, res) => {
-  res.json(subscriptions);
+app.get('/api/subscriptions', (req, res) => {
+  const enrichedSubscriptions = subscriptions.map(subscription => ({
+    ...subscription,
+    monthlyCost: normalizeToMonthly(subscription.cost, subscription.billingCycle),
+    daysUntilRenewal: daysUntilRenewal(subscription.nextRenewalDate),
+    renewingSoon: isRenewingSoon(daysUntilRenewal(subscription.nextRenewalDate))
+  }));
+  res.json(enrichedSubscriptions);
 });
 
-app.get('/subscriptions/:id', (req, res) => {
+app.get('/api/subscriptions/:id', (req, res) => {
   const subscription = subscriptions.find(s => s.id === parseInt(req.params.id));
   if (subscription) {
-    res.json(subscription);
+    const enrichedSubscription = {
+      ...subscription,
+      monthlyCost: normalizeToMonthly(subscription.cost, subscription.billingCycle),
+      daysUntilRenewal: daysUntilRenewal(subscription.nextRenewalDate),
+      renewingSoon: isRenewingSoon(daysUntilRenewal(subscription.nextRenewalDate))
+    };
+    res.json(enrichedSubscription);
   } else {
     res.status(404).json({ message: 'Subscription not found' });
   }
 });
 
-app.post('/subscriptions', (req, res) => {
+app.post('/api/subscriptions', (req, res) => {
   const { serviceName, cost, billingCycle, nextRenewalDate, isActive } = req.body;
   
   if (!serviceName || cost === undefined) {
@@ -60,16 +73,43 @@ app.post('/subscriptions', (req, res) => {
     id: subscriptions.length > 0 ? Math.max(...subscriptions.map(s => s.id)) + 1 : 1,
     serviceName,
     cost,
-    billingCycle: billingCycle || 'monthly',
+    billingCycle: billingCycle || 'Monthly',
     nextRenewalDate: nextRenewalDate || new Date().toISOString().split('T')[0],
     isActive: isActive !== undefined ? isActive : true
   };
 
   subscriptions.push(newSubscription);
-  res.status(201).json(newSubscription);
+  
+  const enrichedSubscription = {
+    ...newSubscription,
+    monthlyCost: normalizeToMonthly(newSubscription.cost, newSubscription.billingCycle),
+    daysUntilRenewal: daysUntilRenewal(newSubscription.nextRenewalDate),
+    renewingSoon: isRenewingSoon(daysUntilRenewal(newSubscription.nextRenewalDate))
+  };
+  
+  res.status(201).json(enrichedSubscription);
 });
 
-app.put('/subscriptions/:id', (req, res) => {
+app.patch('/api/subscriptions/:id/toggle', (req, res) => {
+  const subscription = subscriptions.find(s => s.id === parseInt(req.params.id));
+  
+  if (!subscription) {
+    return res.status(404).json({ message: 'Subscription not found' });
+  }
+
+  subscription.isActive = !subscription.isActive;
+  
+  const enrichedSubscription = {
+    ...subscription,
+    monthlyCost: normalizeToMonthly(subscription.cost, subscription.billingCycle),
+    daysUntilRenewal: daysUntilRenewal(subscription.nextRenewalDate),
+    renewingSoon: isRenewingSoon(daysUntilRenewal(subscription.nextRenewalDate))
+  };
+  
+  res.json(enrichedSubscription);
+});
+
+app.put('/api/subscriptions/:id', (req, res) => {
   const subscription = subscriptions.find(s => s.id === parseInt(req.params.id));
   
   if (!subscription) {
@@ -84,18 +124,33 @@ app.put('/subscriptions/:id', (req, res) => {
   if (nextRenewalDate !== undefined) subscription.nextRenewalDate = nextRenewalDate;
   if (isActive !== undefined) subscription.isActive = isActive;
 
-  res.json(subscription);
+  const enrichedSubscription = {
+    ...subscription,
+    monthlyCost: normalizeToMonthly(subscription.cost, subscription.billingCycle),
+    daysUntilRenewal: daysUntilRenewal(subscription.nextRenewalDate),
+    renewingSoon: isRenewingSoon(daysUntilRenewal(subscription.nextRenewalDate))
+  };
+  
+  res.json(enrichedSubscription);
 });
 
-app.delete('/subscriptions/:id', (req, res) => {
+app.delete('/api/subscriptions/:id', (req, res) => {
   const index = subscriptions.findIndex(s => s.id === parseInt(req.params.id));
   
   if (index === -1) {
     return res.status(404).json({ message: 'Subscription not found' });
   }
 
-  const deletedSubscription = subscriptions.splice(index, 1);
-  res.json(deletedSubscription[0]);
+  const deletedSubscription = subscriptions.splice(index, 1)[0];
+  
+  const enrichedSubscription = {
+    ...deletedSubscription,
+    monthlyCost: normalizeToMonthly(deletedSubscription.cost, deletedSubscription.billingCycle),
+    daysUntilRenewal: daysUntilRenewal(deletedSubscription.nextRenewalDate),
+    renewingSoon: isRenewingSoon(daysUntilRenewal(deletedSubscription.nextRenewalDate))
+  };
+  
+  res.json(enrichedSubscription);
 });
 
 // Error handling middleware
