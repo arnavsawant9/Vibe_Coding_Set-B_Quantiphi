@@ -102,6 +102,29 @@ function Dashboard() {
     }
   };
 
+  // Handle subscription toggle (Active/Paused)
+  const handleToggleSubscription = async (subscriptionId) => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/subscriptions/${subscriptionId}/toggle`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        // Refresh both subscriptions and metrics to update burn rate live
+        await fetchSubscriptions();
+        await fetchMetrics();
+      } else {
+        alert('Failed to toggle subscription');
+      }
+    } catch (error) {
+      console.error('Error toggling subscription:', error);
+      alert('Error toggling subscription');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
@@ -262,29 +285,32 @@ function Dashboard() {
                       key={subscription.id}
                       className={`border-b border-gray-200 hover:bg-gray-50 transition ${
                         index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
-                      }`}
+                      } ${!subscription.isActive ? 'opacity-60' : ''}`}
                     >
-                      <td className="px-6 py-4 text-sm text-gray-800 font-semibold">
+                      <td className={`px-6 py-4 text-sm font-semibold ${subscription.isActive ? 'text-gray-800' : 'text-gray-500'}`}>
                         {subscription.serviceName}
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-700">
+                      <td className={`px-6 py-4 text-sm ${subscription.isActive ? 'text-gray-700' : 'text-gray-500'}`}>
                         ${subscription.cost.toFixed(2)}
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-700">
+                      <td className={`px-6 py-4 text-sm ${subscription.isActive ? 'text-gray-700' : 'text-gray-500'}`}>
                         {subscription.billingCycle}
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-700">
+                      <td className={`px-6 py-4 text-sm ${subscription.isActive ? 'text-gray-700' : 'text-gray-500'}`}>
                         {subscription.nextRenewalDate}
                       </td>
                       <td className="px-6 py-4 text-sm">
-                        <div className="flex flex-wrap gap-2 items-center">
-                          <span
-                            className={`inline-block px-3 py-1 rounded-full text-xs font-semibold text-white ${
-                              subscription.isActive ? 'bg-green-500' : 'bg-gray-500'
+                        <div className="flex flex-wrap gap-3 items-center">
+                          <button
+                            onClick={() => handleToggleSubscription(subscription.id)}
+                            className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold transition ${
+                              subscription.isActive
+                                ? 'bg-green-500 text-white hover:bg-green-600'
+                                : 'bg-gray-400 text-white hover:bg-gray-500'
                             }`}
                           >
-                            {subscription.isActive ? 'Active' : 'Inactive'}
-                          </span>
+                            {subscription.isActive ? 'Active' : 'Paused'}
+                          </button>
                           {subscription.renewingSoon && (
                             <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-300">
                               Renewing Soon
