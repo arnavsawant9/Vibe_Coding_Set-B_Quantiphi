@@ -2,7 +2,12 @@ import { useState, useEffect } from 'react';
 
 function Dashboard() {
   const [subscriptions, setSubscriptions] = useState([]);
+  const [metrics, setMetrics] = useState({
+    totalMonthlyBurn: 0,
+    upcomingRenewalsCount: 0
+  });
   const [loading, setLoading] = useState(false);
+  const [metricsLoading, setMetricsLoading] = useState(false);
   const [formData, setFormData] = useState({
     serviceName: '',
     cost: '',
@@ -24,9 +29,24 @@ function Dashboard() {
     }
   };
 
-  // Load subscriptions on component mount
+  // Fetch metrics from backend
+  const fetchMetrics = async () => {
+    try {
+      setMetricsLoading(true);
+      const response = await fetch('http://localhost:5000/api/metrics');
+      const data = await response.json();
+      setMetrics(data);
+    } catch (error) {
+      console.error('Error fetching metrics:', error);
+    } finally {
+      setMetricsLoading(false);
+    }
+  };
+
+  // Load subscriptions and metrics on component mount
   useEffect(() => {
     fetchSubscriptions();
+    fetchMetrics();
   }, []);
 
   // Handle form input changes
@@ -70,8 +90,9 @@ function Dashboard() {
           billingCycle: 'Monthly',
           nextRenewalDate: ''
         });
-        // Refresh subscription list
+        // Refresh subscription list and metrics
         await fetchSubscriptions();
+        await fetchMetrics();
       } else {
         alert('Failed to add subscription');
       }
@@ -83,13 +104,54 @@ function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8 text-center">
           <h1 className="text-4xl sm:text-5xl font-bold text-white mb-2 drop-shadow-lg">
             Subscription Manager
           </h1>
           <p className="text-indigo-100 text-lg">Track and manage all your subscriptions in one place</p>
+        </div>
+
+        {/* Metrics Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          {/* Total Monthly Burn Rate Card */}
+          <div className="bg-white rounded-xl shadow-2xl p-6 sm:p-8">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-600 text-sm font-semibold uppercase tracking-wide mb-1">
+                  Total Monthly Burn Rate
+                </p>
+                {metricsLoading ? (
+                  <p className="text-gray-500 text-lg">Loading...</p>
+                ) : (
+                  <p className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600">
+                    ${metrics.totalMonthlyBurn.toFixed(2)}
+                  </p>
+                )}
+              </div>
+              <div className="text-5xl">💰</div>
+            </div>
+          </div>
+
+          {/* Upcoming Renewals Alert Count Card */}
+          <div className="bg-white rounded-xl shadow-2xl p-6 sm:p-8">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-600 text-sm font-semibold uppercase tracking-wide mb-1">
+                  Upcoming Renewals Alert Count
+                </p>
+                {metricsLoading ? (
+                  <p className="text-gray-500 text-lg">Loading...</p>
+                ) : (
+                  <p className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-600 to-orange-600">
+                    {metrics.upcomingRenewalsCount}
+                  </p>
+                )}
+              </div>
+              <div className="text-5xl">🔔</div>
+            </div>
+          </div>
         </div>
 
         {/* Subscription Entry Form */}
@@ -170,7 +232,7 @@ function Dashboard() {
           </form>
         </div>
 
-        {/* Subscriptions List */}
+        {/* Subscriptions Table */}
         <div className="bg-white rounded-xl shadow-2xl p-6 sm:p-8">
           <h2 className="text-2xl font-bold text-gray-800 mb-6">Your Subscriptions</h2>
           
@@ -183,49 +245,57 @@ function Dashboard() {
               <p className="text-gray-600 text-lg">No subscriptions yet. Add one to get started!</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {subscriptions.map(subscription => (
-                <div
-                  key={subscription.id}
-                  className={`rounded-lg border-l-4 p-6 shadow-md hover:shadow-lg transition transform hover:-translate-y-1 ${
-                    subscription.isActive
-                      ? 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-500'
-                      : 'bg-gray-100 border-gray-400 opacity-75'
-                  }`}
-                >
-                  <div className="flex justify-between items-start mb-4 pb-4 border-b-2 border-gray-200">
-                    <h3 className="text-xl font-bold text-gray-800">{subscription.serviceName}</h3>
-                    <span
-                      className={`inline-block px-3 py-1 rounded-full text-xs font-semibold text-white ${
-                        subscription.isActive ? 'bg-green-500' : 'bg-gray-500'
+            <div className="overflow-x-auto">
+              <table className="min-w-full border-collapse">
+                <thead>
+                  <tr className="bg-gray-100 border-b-2 border-gray-300">
+                    <th className="px-6 py-3 text-left text-sm font-bold text-gray-700">Service</th>
+                    <th className="px-6 py-3 text-left text-sm font-bold text-gray-700">Cost</th>
+                    <th className="px-6 py-3 text-left text-sm font-bold text-gray-700">Cycle</th>
+                    <th className="px-6 py-3 text-left text-sm font-bold text-gray-700">Renewal Date</th>
+                    <th className="px-6 py-3 text-left text-sm font-bold text-gray-700">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {subscriptions.map((subscription, index) => (
+                    <tr
+                      key={subscription.id}
+                      className={`border-b border-gray-200 hover:bg-gray-50 transition ${
+                        index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
                       }`}
                     >
-                      {subscription.isActive ? 'Active' : 'Inactive'}
-                    </span>
-                  </div>
-
-                  <div className="space-y-2 text-sm text-gray-700">
-                    <p>
-                      <strong className="text-gray-900">Cost:</strong> ${subscription.cost.toFixed(2)}{' '}
-                      <span className="text-gray-500">({subscription.billingCycle})</span>
-                    </p>
-                    <p>
-                      <strong className="text-gray-900">Monthly Cost:</strong> ${subscription.monthlyCost.toFixed(2)}
-                    </p>
-                    <p>
-                      <strong className="text-gray-900">Next Renewal:</strong> {subscription.nextRenewalDate}
-                    </p>
-                    <p>
-                      <strong className="text-gray-900">Days Until Renewal:</strong> {subscription.daysUntilRenewal}
-                    </p>
-                    {subscription.renewingSoon && (
-                      <div className="mt-3 p-3 bg-yellow-100 border border-yellow-400 rounded-lg text-yellow-800 font-semibold text-center">
-                        ⚠️ Renewing Soon!
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
+                      <td className="px-6 py-4 text-sm text-gray-800 font-semibold">
+                        {subscription.serviceName}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-700">
+                        ${subscription.cost.toFixed(2)}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-700">
+                        {subscription.billingCycle}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-700">
+                        {subscription.nextRenewalDate}
+                      </td>
+                      <td className="px-6 py-4 text-sm">
+                        <div className="flex flex-wrap gap-2 items-center">
+                          <span
+                            className={`inline-block px-3 py-1 rounded-full text-xs font-semibold text-white ${
+                              subscription.isActive ? 'bg-green-500' : 'bg-gray-500'
+                            }`}
+                          >
+                            {subscription.isActive ? 'Active' : 'Inactive'}
+                          </span>
+                          {subscription.renewingSoon && (
+                            <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-300">
+                              Renewing Soon
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </div>
